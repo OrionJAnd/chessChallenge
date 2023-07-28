@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "iEVzhF9uomm+DaOissLkJX7HQjOQWmjqTr7J56JJnAig9M2x8BE1K3TystRqr2//hXtmHE19R93kawJuKaVRgw==",
+  "success": true,
+  "projectFilePath": "/home/orion/Code/Chess-Challenge/Chess-Challenge/Chess-Challenge.csproj",
+  "expectedPackageFiles": [
+    "/home/orion/.nuget/packages/raylib-cs/4.5.0.2/raylib-cs.4.5.0.2.nupkg.sha512",
+    "/home/orion/.nuget/packages/system.numerics.vectors/4.5.0/system.numerics.vectors.4.5.0.nupkg.sha512"
+  ],
+  "logs": []
+}
