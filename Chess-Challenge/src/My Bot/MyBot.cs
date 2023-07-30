@@ -1,5 +1,7 @@
 ﻿using ChessChallenge.API;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ChessChallenge.Example
 {
@@ -15,38 +17,57 @@ namespace ChessChallenge.Example
             Move[] allMoves = board.GetLegalMoves();
 
             Move moveToPlay = search(board, allMoves);
-            Console.WriteLine(evaluate(board, moveToPlay));
+            Console.WriteLine("Current eval: " + evaluate(board));
 
             return moveToPlay;
         }
 
         public Move search(Board currentBoard, Move[] allMoves) {
+            int latestBoardEval = evaluate(currentBoard);
+
             Random rng = new();
             Move random = allMoves[rng.Next(allMoves.Length)];
             Move topMove = random;
 
-            int highestEval = 0;
+            int highestEval = -1;
 
-            foreach (Move move in allMoves) {
-                Move moveToPlay = move;
-                // Console.WriteLine(moveToPlay);
-                currentBoard.MakeMove(moveToPlay);
+
+            List<Move> topMoves = highestValCaps(allMoves, currentBoard);
+            Console.WriteLine("Length of top three: " + topMoves.Count);
+
+
+            foreach (Move move in topMoves) {
+                Console.WriteLine("Move in top three: " + move);
+                currentBoard.MakeMove(move);
+
                 Move[] allEnemyMoves = currentBoard.GetLegalMoves();
-                if (allEnemyMoves == null || allEnemyMoves.Length == 0) {
+
+                if (allEnemyMoves.Length == 0) {
                     topMove = move;
                     break;
                 }
-                Move enemyMove = highestValCap(allEnemyMoves, currentBoard);
-                currentBoard.MakeMove(enemyMove);
-                
-                int evaluation = evaluate(currentBoard, moveToPlay);
 
-                if (evaluation > highestEval) {
-                    topMove = moveToPlay;
+                Move enemyMove = highestValCap(allEnemyMoves, currentBoard);
+
+                currentBoard.MakeMove(enemyMove);
+
+
+                int eval = evaluate(currentBoard);
+
+                int netEval = eval - latestBoardEval;
+
+                Console.WriteLine(move + " eval: " + netEval);
+
+                if (eval > highestEval) {
+                    topMove  = move;
+                    highestEval = eval;
                 }
                 currentBoard.UndoMove(enemyMove);
-                currentBoard.UndoMove(moveToPlay);
+                currentBoard.UndoMove(move);
+                Console.WriteLine("Top move is: " + topMove);
+
             }
+
             if (topMove.IsPromotion) {
                 Square moveStart = topMove.StartSquare;
                 Square moveEnd = topMove.TargetSquare;
@@ -54,6 +75,7 @@ namespace ChessChallenge.Example
                 String moveEndString = moveEnd.Name;
                 topMove = new Move(moveStartString + moveEndString + "q", currentBoard);
             }
+            Console.WriteLine("Actual move: " + topMove);
             return topMove;
         }
 
@@ -123,6 +145,43 @@ namespace ChessChallenge.Example
             return moveToPlay;
         }
 
+        public List<Move> highestValCaps(Move[] moveList, Board currentBoard) {
+
+            Dictionary<Move, int> highestValueCaptures = new Dictionary<Move, int>();
+
+            foreach (Move move in moveList)
+            {
+                // Always play checkmate in one
+                if (MoveIsCheckmate(currentBoard, move))
+                {   
+                    highestValueCaptures.Add(move, 100000);
+                    moveToPlay = move;
+                    break;
+                }
+
+                // Find highest value capture
+                Piece capturedPiece = currentBoard.GetPiece(move.TargetSquare);
+                int capturedPieceValue = pieceValues[(int)capturedPiece.PieceType];
+
+                // if (capturedPieceValue > highestValueCapture)
+                // {
+                //     moveToPlay = move;
+                //     highestValueCapture = capturedPieceValue;
+                // }
+                highestValueCaptures.Add(move, capturedPieceValue);
+            }
+
+            List<KeyValuePair<Move, int>> sortedMoves = highestValueCaptures.ToList();
+
+            sortedMoves.Sort((pair1, pair2) => pair2.Value.CompareTo(pair1.Value));
+
+            List<KeyValuePair<Move, int>> topMoves = sortedMoves.Take(20).ToList();
+
+            List<Move> topMovesList = topMoves.Select(pair => pair.Key).ToList();
+
+            return topMovesList;
+        }
+
         // Test if this move gives checkmate
         bool MoveIsCheckmate(Board board, Move move)
         {
@@ -132,19 +191,18 @@ namespace ChessChallenge.Example
             return isMate;
         }
 
-        int evaluate (Board board, Move latestMove) {
-            int whiteEval = countMat(true, board);
-            int blackEval = countMat(false, board);
+        int evaluate (Board board) {
+            int whiteEvalCurrent = countMat(true, board);
+            int blackEvalCurrent = countMat(false, board);
 
-            int eval = whiteEval - blackEval;
+            int eval = whiteEvalCurrent - blackEvalCurrent;
 
-            if (latestMove.IsCapture) {
-                return eval * ((board.IsWhiteToMove) ? 1 : -1) * 4;
+            if (board.IsInCheckmate()) {
+                return -1000000 * ((board.IsWhiteToMove) ? 1 : -1);
             }
             else {
                 return eval * ((board.IsWhiteToMove) ? 1 : -1);
             }
-
             
         }
 
