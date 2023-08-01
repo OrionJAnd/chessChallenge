@@ -11,6 +11,9 @@ namespace ChessChallenge.Example
     {
         // Piece values: null, pawn, knight, bishop, rook, queen, king
         int[] pieceValues = { 0, 100, 300, 300, 500, 900, 10000 };
+        int moveNum = 0;
+
+        List<Move> allMoves = new List<Move>();
 
         public Move Think(Board board, Timer timer)
         {
@@ -19,6 +22,8 @@ namespace ChessChallenge.Example
             Move moveToPlay = search(board, allMoves);
             Console.WriteLine("Current eval: " + evaluate(board));
 
+            moveNum++;
+            allMoves.Append(moveToPlay);
             return moveToPlay;
         }
 
@@ -33,38 +38,54 @@ namespace ChessChallenge.Example
 
 
             List<Move> topMoves = highestValCaps(allMoves, currentBoard);
-            Console.WriteLine("Length of top three: " + topMoves.Count);
-
 
             foreach (Move move in topMoves) {
-                Console.WriteLine("Move in top three: " + move);
+                int eval = 0;
                 currentBoard.MakeMove(move);
 
                 Move[] allEnemyMoves = currentBoard.GetLegalMoves();
 
-                if (allEnemyMoves.Length == 0) {
+
+                if (currentBoard.IsInCheckmate()) {
                     topMove = move;
                     break;
                 }
 
-                Move enemyMove = highestValCap(allEnemyMoves, currentBoard);
+                else if (currentBoard.IsDraw()) {
+                    eval = -10000;
+                }
 
-                currentBoard.MakeMove(enemyMove);
+                else {
+                    Move enemyMove = highestValCap(allEnemyMoves, currentBoard);
+
+                    currentBoard.MakeMove(enemyMove);
+
+                    eval = evaluate(currentBoard);
+                    if (move.MovePieceType == PieceType.Rook && moveNum < 10) {
+                        eval -= 200;
+                    }
+                    if (move.MovePieceType == PieceType.Bishop && 4 < moveNum) {
+                        eval += 50;
+                    }
+                    if (move.MovePieceType == PieceType.Pawn && moveNum < 10) {
+                        eval += 100;
+                    }
+                    if (!(allMoves.Count() < 2) && move == allMoves[allMoves.Count() - 2]) {
+                        eval -= 100;
+                    }
+                    currentBoard.UndoMove(enemyMove);
+                }
 
 
-                int eval = evaluate(currentBoard);
 
                 int netEval = eval - latestBoardEval;
-
-                Console.WriteLine(move + " eval: " + netEval);
 
                 if (eval > highestEval) {
                     topMove  = move;
                     highestEval = eval;
                 }
-                currentBoard.UndoMove(enemyMove);
                 currentBoard.UndoMove(move);
-                Console.WriteLine("Top move is: " + topMove);
+                // Console.WriteLine("Top move is: " + topMove);
 
             }
 
@@ -76,43 +97,11 @@ namespace ChessChallenge.Example
                 topMove = new Move(moveStartString + moveEndString + "q", currentBoard);
             }
             Console.WriteLine("Actual move: " + topMove);
+            if (topMove == random) {
+                Console.WriteLine("Random move");
+            }
             return topMove;
         }
-
-        // public Move search(Board currentBoard, Move[] allMoves) {
-        //     Random rng = new();
-        //     Move topMove = allMoves[rng.Next(allMoves.Length)];
-        //     int highestValueCapture = 0;
-
-        //     foreach (Move move in allMoves)
-        //     {
-        //         // Always play checkmate in one
-        //         if (MoveIsCheckmate(currentBoard, move))
-        //         {
-        //             topMove = move;
-        //             break;
-        //         }
-
-        //         // Find highest value capture
-        //         Piece capturedPiece = currentBoard.GetPiece(move.TargetSquare);
-        //         int capturedPieceValue = pieceValues[(int)capturedPiece.PieceType];
-
-        //         if (capturedPieceValue > highestValueCapture)
-        //         {
-        //             topMove = move;
-        //             highestValueCapture = capturedPieceValue;
-        //         }
-        //     }
-        //     if (topMove.IsPromotion) {
-        //         Square moveStart = topMove.StartSquare;
-        //         Square moveEnd = topMove.TargetSquare;
-        //         String moveStartString = moveStart.Name;
-        //         String moveEndString = moveEnd.Name;
-        //         topMove = new Move(moveStartString + moveEndString + "q", currentBoard);
-        //     }
-        //     Console.WriteLine(topMove);
-        //     return topMove;
-        // }
 
         public Move highestValCap(Move[] moveList, Board currentBoard) {
             // Pick a random move to play if nothing better is found
@@ -146,9 +135,6 @@ namespace ChessChallenge.Example
         }
 
         public List<Move> highestValCaps(Move[] moveList, Board currentBoard) {
-            // Pick a random move to play if nothing better is found
-            Random rng = new();
-            Move moveToPlay = moveList[rng.Next(moveList.Length)];
 
             Dictionary<Move, int> highestValueCaptures = new Dictionary<Move, int>();
 
@@ -157,8 +143,7 @@ namespace ChessChallenge.Example
                 // Always play checkmate in one
                 if (MoveIsCheckmate(currentBoard, move))
                 {   
-                    highestValueCaptures.Add(move, 10000);
-                    moveToPlay = move;
+                    highestValueCaptures.Add(move, 100000);
                     break;
                 }
 
